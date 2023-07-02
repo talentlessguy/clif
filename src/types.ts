@@ -15,6 +15,7 @@ export type Option<T extends OptionType = OptionType> = {
    * Short command alias
    */
   alias?: string
+  description?: string
 }
 
 export type Options = {
@@ -33,5 +34,15 @@ export interface Command<
   description?: string
   args?: Args
   options: Opts
-  action: (args: Args, options: ParsedOptions<Opts>) => void
+  action: (
+    args: Args,
+    options: ParsedOptions<Opts>,
+    unknownOptions: string[]
+  ) => void
 }
+
+export type ParserConfig = Partial<{
+  strict: boolean
+}>
+
+export type OptionsWithNames = (Option & { name: string })[]

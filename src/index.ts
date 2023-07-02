@@ -1,5 +1,5 @@
 import { baseOptions, parseArgv } from './parser.js'
-import { Command, Options } from './types.js'
+import { Command, Options, ParserConfig } from './types.js'
 
 export class Clif {
   name: string
@@ -8,21 +8,24 @@ export class Clif {
   #defaultCommand?: Command<any>
   #version?: string
   #argv: string[]
+  #config: ParserConfig
   constructor({
     name,
     description,
     argv = process.argv,
     version,
+    ...conf
   }: {
     name: string
     description?: string
     argv?: string[]
     version?: string
-  }) {
+  } & ParserConfig) {
     this.name = name
     this.description = description
     this.#argv = argv
     this.#version = version
+    this.#config = conf
   }
   command<O extends Options = Options>(cmd: Command<O>) {
     if (cmd.name === undefined) this.#defaultCommand = cmd
@@ -36,12 +39,21 @@ export class Clif {
   }
   parse(argv = process.argv.slice(2)) {
     if (this.#defaultCommand) {
-      console.log(baseOptions(argv, this.#defaultCommand.options))
+      const { options, unknownOptions, positionals } = baseOptions(
+        argv,
+        this.#defaultCommand.options,
+        this.#config
+      )
+      if (options['help']) return console.log(`help`)
+      if (options['version'])
+        return process.stdin.write(`${this.name} ${this.#version}\n`)
+      this.#defaultCommand.action(positionals, options, unknownOptions)
     }
   }
+  help() {}
 }
 
-const cli = new Clif({ name: 'flash' })
+const cli = new Clif({ name: 'flash', strict: false })
 
 // cli.command({
 //   name: 'test',
@@ -54,10 +66,10 @@ cli.command({
   description: 'deploy on Flash',
   options: {
     name: { type: 'number', required: false, alias: 'n' },
-    value: { type: 'boolean' },
+    value: { type: 'boolean', description: 'Command value' },
   },
-  action: (args, options) => {
-    console.log(options.name, options.value)
+  action: (args, options, unknownOptions) => {
+    console.log({ args, options, unknownOptions })
   },
 })
 
