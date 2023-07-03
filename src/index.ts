@@ -49,15 +49,17 @@ export class Clif {
       return command.action(positionals, options, unknownOptions)
     }
 
+    const { options, unknownOptions, positionals } = baseOptions(
+      argv,
+      {} || this.#defaultCommand?.options,
+      this.#config
+    )
+
+    if (options['help'] && this.#helpEnabled) return this.#help()
+    if (options['version'] && this.#version)
+      return console.info(`${this.name} ${this.#version}\n`)
+
     if (this.#defaultCommand) {
-      const { options, unknownOptions, positionals } = baseOptions(
-        argv,
-        this.#defaultCommand.options,
-        this.#config
-      )
-      if (options['help'] && this.#helpEnabled) return this.#help()
-      if (options['version'] && this.#version)
-        return console.info(`${this.name} ${this.#version}\n`)
       return this.#defaultCommand.action(positionals, options, unknownOptions)
     }
   }
@@ -66,39 +68,69 @@ export class Clif {
     options,
     description,
     usage,
+    commands,
   }: {
     name: string
-    options: Options
+    options?: Options
     description?: string
     usage?: string
+    commands?: Command[]
   }) {
-    const entries = Object.entries(options)
-    const hasOptions = entries.length !== 0
-
-    console.info(
-      [
-        description ? `${`${description}\n`}` : '',
-        `${`Usage:\n    ${
-          usage || ` ${name} ${hasOptions ? '[OPTIONS]' : ''}`
-        }`}\n`,
-        hasOptions ? 'Options:' : undefined,
-        table(
-          entries.map(([name, opt]) => [
-            `--${name}${opt.alias ? `, -${opt.alias}` : ''}`,
-            opt.description || '',
-          ]),
-          {
-            border: getBorderCharacters('void'),
-            columnDefault: {
-              paddingLeft: 4,
-            },
-            drawHorizontalLine: () => false,
-          }
-        ),
-      ]
-        .filter((x) => x !== undefined)
-        .join('\n')
-    )
+    if (options) {
+      const entries = Object.entries(options)
+      const hasEntries = entries.length !== 0
+      process.stdin.write(
+        [
+          description ? `${`${description}\n`}` : undefined,
+          `${`${color.underline('Usage:')}\n    ${
+            usage || ` ${name} ${hasEntries ? '[OPTIONS]' : ''}`
+          }`}\n`,
+          hasEntries ? color.underline('Options:') : undefined,
+          hasEntries
+            ? table(
+                entries.map(([name, opt]) => [
+                  `--${name}${opt.alias ? `, -${opt.alias}` : ''}`,
+                  opt.description || '',
+                ]),
+                {
+                  border: getBorderCharacters('void'),
+                  columnDefault: {
+                    paddingLeft: 4,
+                  },
+                  drawHorizontalLine: () => false,
+                }
+              )
+            : undefined,
+        ]
+          .filter((x) => x !== undefined)
+          .join('\n')
+      )
+    } else if (commands) {
+      const hasCommands = this.#commands.length !== 0
+      process.stdin.write(
+        [
+          description ? `${`${description}\n`}` : undefined,
+          `${`${color.underline('Usage:')}\n    ${
+            usage || ` ${name} ${hasCommands ? '[OPTIONS]' : ''}`
+          }`}\n`,
+          hasCommands ? color.underline('Commands:') : undefined,
+          hasCommands
+            ? table(
+                commands.map((cmd) => [cmd.name, cmd.description || '']),
+                {
+                  border: getBorderCharacters('void'),
+                  columnDefault: {
+                    paddingLeft: 4,
+                  },
+                  drawHorizontalLine: () => false,
+                }
+              )
+            : undefined,
+        ]
+          .filter((x) => x !== undefined)
+          .join('\n')
+      )
+    }
   }
   #help(cmdName?: string) {
     if (cmdName) {
@@ -111,12 +143,19 @@ export class Clif {
           usage: cmd.usage,
         })
       }
-    } else if (this.#defaultCommand) {
+    } else {
       this.#helpMessage({
         name: this.name,
-        description: this.#defaultCommand.description || this.description,
-        options: this.#defaultCommand.options,
-        usage: this.#defaultCommand.usage,
+        ...(this.#defaultCommand
+          ? {
+              description: this.#defaultCommand?.description,
+              options: this.#defaultCommand?.options || {},
+              usage: this.#defaultCommand?.usage,
+            }
+          : {
+              description: this.description,
+              commands: this.#commands,
+            }),
       })
     }
   }
@@ -124,3 +163,7 @@ export class Clif {
     this.#helpEnabled = true
   }
 }
+
+const cli = new Clif({ name: 'hello', description: 'Say Hello' })
+cli.help()
+cli.parse()
