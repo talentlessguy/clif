@@ -1,10 +1,4 @@
-import type {
-  Option,
-  OptionsWithNames,
-  Options,
-  ParsedOptions,
-  ParserConfig,
-} from './types.js'
+import type { OptionsWithNames, Options, ParserConfig } from './types.js'
 
 const isOption = (x: string) => x.startsWith('-') || x.startsWith('--')
 
@@ -26,7 +20,6 @@ const findFlagsWithOptions = (
 
   while (argv.length !== 0) {
     let arg = argv[0]
-    console.log()
     const option = findOptionInFlags(optionsWithAliases, arg)
     const argPosition = argv.indexOf(arg)
     if (option) {
@@ -79,14 +72,26 @@ const findFlagsWithOptions = (
 }
 
 export const parseArgv = (
-  options: Options = {},
   argv: string[],
+  options: Options = {},
   config: ParserConfig = { strict: false }
 ) => {
-  const entries: OptionsWithNames = Object.entries(options).map(([k, v]) => ({
-    name: k,
-    ...v,
-  }))
+  const entries: OptionsWithNames = Object.entries({
+    ...options,
+    help: {
+      type: 'boolean',
+      alias: 'h',
+    } as const,
+  }).map(([name, option]) => {
+    if (option.alias?.length! > 1)
+      throw new Error(
+        `Option "${name}" alias -"${option.alias}" must be a single character.`
+      )
+    return {
+      name,
+      ...option,
+    }
+  })
 
   const { unknownOptions, ...parsed } = findFlagsWithOptions(argv, entries)
 
@@ -102,17 +107,13 @@ export const baseOptions = (
   config: ParserConfig = { strict: false }
 ) =>
   parseArgv(
+    argv,
     {
-      help: {
-        type: 'boolean',
-        alias: 'h',
-      },
       version: {
         type: 'boolean',
         alias: 'v',
       },
       ...options,
     },
-    argv,
     config
   )

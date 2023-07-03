@@ -12,7 +12,7 @@ export type Option<T extends OptionType = OptionType> = {
   type: T
   required?: boolean
   /**
-   * Short command alias
+   * Single character command alias
    */
   alias?: string
   description?: string
@@ -32,8 +32,9 @@ export interface Command<
 > {
   name?: string
   description?: string
+  usage?: string
   args?: Args
-  options: Opts
+  options?: Opts
   action: (
     args: Args,
     options: ParsedOptions<Opts>,
